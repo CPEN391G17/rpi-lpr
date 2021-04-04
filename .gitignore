@@ -9,3 +9,5 @@ test.py
 lpr.py
 /__pycache__
 detect.pyc
+requirements-gpu.txt
+requirements.txt
