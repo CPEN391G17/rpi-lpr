@@ -2,3 +2,8 @@
 /data/custom.weights
 /core/__pycache__
 /serviceAccountKey
+output.bin
+input.bin
+test.py
+*.jpg
+lpr.py
