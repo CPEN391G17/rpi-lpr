@@ -7,3 +7,5 @@ input.bin
 test.py
 *.jpg
 lpr.py
+/__pycache__
+detect.pyc
