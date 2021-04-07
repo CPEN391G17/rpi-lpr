@@ -23,3 +23,9 @@ easydict <br/>
 pillow <br/>
 pytesseract <br/>
 LP_OCR_model.model <br/>
+
+# LPR OCR model
+Download the LP_OCR_model.model from Google Drive link: <br/>
+https://drive.google.com/drive/folders/1awJMLGe1tEUmEAjtCyAMay28mQYHi4rk?usp=sharing <br/>
+
+The LP_OCR_model.model folder to the same directory that ``detect.py`` is in. <br/>
