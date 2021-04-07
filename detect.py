@@ -15,10 +15,14 @@ import cv2
 import numpy as np
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
+import matplotlib.pyplot as plt
+import tensorflow.keras as keras
 
 flags.DEFINE_list('images', './data/images/kite.jpg', 'path to input image')
 
 def lpr(path):
+    new_model = tf.keras.models.load_model('LP_OCR_model.model')
+
     config = ConfigProto()
     config.gpu_options.allow_growth = True
     session = InteractiveSession(config=config)
@@ -79,7 +83,7 @@ def lpr(path):
     allowed_classes = list(class_names.values())
 
     # get lpr
-    image, plate_num = utils.draw_bbox(original_image, pred_bbox, info=False,
+    image, plate_num = utils.draw_bbox(original_image, pred_bbox, new_model, info=False,
                             allowed_classes=allowed_classes, read_plate=True)
 
     image = Image.fromarray(image.astype(np.uint8))
