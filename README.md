@@ -10,6 +10,7 @@ easydict <br/>
 matplotlib <br/>
 pillow <br/>
 pytesseract <br/>
+LP_OCR_model.model <br/>
 
 # requirements-gpu
 tensorflow-gpu==2.3.0rc0 <br/>
@@ -21,3 +22,4 @@ matplotlib <br/>
 easydict <br/>
 pillow <br/>
 pytesseract <br/>
+LP_OCR_model.model <br/>
