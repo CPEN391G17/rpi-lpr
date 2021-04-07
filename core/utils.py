@@ -7,15 +7,66 @@ import pytesseract
 from core.config import cfg
 import re
 import os
-from core.serial import grayscale_and_resize
+import matplotlib.pyplot as plt
+import tensorflow.keras as keras
+# import core.predicter as predicter
+# from core.serial import grayscale_and_resize
 
+
+def grayscale(img):
+    def RGB2GRAY(img):
+        gray_img = []
+        for sets in img:
+            gray_img.append(int(0.299*sets[0] + 0.587*sets[1] + 0.114*sets[2]))
+        return gray_img
+    pix_val = []
+    # img = cv2.imread('small.jpg')
+    for arr in img:
+        for pix in arr:
+            pix_val.append((pix[2], pix[1], pix[0]))
+            
+    # print(pix_val)
+    
+    gray_list = RGB2GRAY(pix_val)
+    gray_arr = np.array(gray_list).reshape(img.shape[0],img.shape[1]).astype('uint8')
+    
+    return gray_arr
+    
+    
+
+def resize3x3(img):
+    w = 3*(img.shape[1]-1)
+    h = 3*(img.shape[0]-1)
+    # print(w, h)
+    
+    res = np.zeros((h, w))
+    for y in range(h):
+        for x in range(w):
+            x1 = x // 3
+            y1 = y // 3
+            x2 = x1+1
+            y2 = y1+1
+            
+            s1 = img[y1,x1] * (3*x2-x) * (3*y2-y)
+            s2 = img[y1,x2] * (x-3*x1) * (3*y2-y)
+            s3 = img[y2,x1] * (3*x2-x) * (y-3*y1)
+            s4 = img[y2,x2] * (x-3*x1) * (y-3*y1)
+            
+            try:
+                res[y,x] = np.int32(1/9 * (s1+s2+s3+s4))
+            except Exception as e:
+                print("ERROR")
+                # print("x1: ", x1, "x2: ", x2, "y1: ", y1, "y2: ", y2)
+                # print(x, y)
+        
+    return res.astype('uint8')
 
 # If you don't have tesseract executable in your PATH, include the following:
 # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 # Example tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract'
 
 # function to recognize license plate numbers using Tesseract OCR
-def recognize_plate(img, coords):
+def recognize_plate(img, coords, ocr_model):
     # separate coordinates from box
     xmin, ymin, xmax, ymax = coords
     # get the subimage that makes up the bounded region and take an additional 5 pixels on each side
@@ -30,6 +81,8 @@ def recognize_plate(img, coords):
 
 
     gray = grayscale_and_resize(box)
+    # gray = grayscale(box)
+    # gray = resize3x3(gray)
 
     
     # perform gaussian blur to smoothen image
@@ -79,71 +132,34 @@ def recognize_plate(img, coords):
         rect = cv2.rectangle(im2, (x,y), (x+w, y+h), (0,255,0),2)
         # grab character region of image
         roi = thresh[y-5:y+h+5, x-5:x+w+5]
-        # perfrom bitwise not to flip image to black text on white background
-        roi = cv2.bitwise_not(roi)
+
+        if not is_black_on_white(roi):
+            # perfrom bitwise not to flip image to black text on white background
+            roi = cv2.bitwise_not(roi)
         # perform another blur on character region
         roi = cv2.medianBlur(roi, 5)
+
         try:
-            text = pytesseract.image_to_string(roi, config='-c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ --psm 8 --oem 3')
-            # clean tesseract text by removing any unwanted blank spaces
-            clean_text = re.sub('[\W_]+', '', text)
-            plate_num += clean_text
+            def find_char(char_class):
+                if char_class < 10:
+                    return char_class
+                elif char_class < 24:
+                    return chr(ord('@')+char_class-9)
+                else:
+                    return chr(ord('@')+char_class-8)
+
+            img = cv2.resize(roi, (100, 50))
+            img = tf.keras.utils.normalize(img, axis=1).reshape(1, -1)
+            predictions = ocr_model.predict(img)
+            plate_num += str(find_char(np.argmax(predictions[0])))
         except:
+            print('except')
             text = None
     if plate_num != None:
         print("License Plate #: ", plate_num)
     #cv2.imshow("Character's Segmented", im2)
     #cv2.waitKey(0)
     return plate_num
-
-def grayscale(img):
-    def RGB2GRAY(img):
-        gray_img = []
-        for sets in img:
-            gray_img.append(int(0.299*sets[0] + 0.587*sets[1] + 0.114*sets[2]))
-        return gray_img
-    pix_val = []
-    # img = cv2.imread('small.jpg')
-    for arr in img:
-        for pix in arr:
-            pix_val.append((pix[2], pix[1], pix[0]))
-            
-    print(pix_val)
-    
-    gray_list = RGB2GRAY(pix_val)
-    gray_arr = np.array(gray_list).reshape(img.shape[0],img.shape[1]).astype('uint8')
-    
-    return gray_arr
-    
-    
-
-def resize3x3(img):
-    w = 3*(img.shape[1]-1)
-    h = 3*(img.shape[0]-1)
-    # print(w, h)
-    
-    res = np.zeros((h, w))
-    for y in range(h):
-        for x in range(w):
-            x1 = x // 3
-            y1 = y // 3
-            x2 = x1+1
-            y2 = y1+1
-            
-            s1 = img[y1,x1] * (3*x2-x) * (3*y2-y)
-            s2 = img[y1,x2] * (x-3*x1) * (3*y2-y)
-            s3 = img[y2,x1] * (3*x2-x) * (y-3*y1)
-            s4 = img[y2,x2] * (x-3*x1) * (y-3*y1)
-            
-            try:
-                res[y,x] = np.int32(1/9 * (s1+s2+s3+s4))
-            except Exception as e:
-                print("ERROR")
-                # print("x1: ", x1, "x2: ", x2, "y1: ", y1, "y2: ", y2)
-                # print(x, y)
-        
-    return res.astype('uint8')
-
 
 # function to regognize chars from sorter countours of LP
 def find_character_contour(sorted_contours, im2, thresh):
@@ -419,7 +435,7 @@ def format_boxes(bboxes, image_height, image_width):
         box[0], box[1], box[2], box[3] = xmin, ymin, xmax, ymax
     return bboxes
 
-def draw_bbox(image, bboxes, info = False, counted_classes = None, show_label=True, allowed_classes=list(read_class_names(cfg.YOLO.CLASSES).values()), read_plate = False):
+def draw_bbox(image, bboxes, model, info = False, counted_classes = None, show_label=True, allowed_classes=list(read_class_names(cfg.YOLO.CLASSES).values()), read_plate = False):
     classes = read_class_names(cfg.YOLO.CLASSES)
     num_classes = len(classes)
     image_h, image_w, _ = image.shape
@@ -445,7 +461,7 @@ def draw_bbox(image, bboxes, info = False, counted_classes = None, show_label=Tr
         else:
             if read_plate:
                 height_ratio = int(image_h / 25)
-                plate_number = recognize_plate(image, coor)
+                plate_number = recognize_plate(image, coor, model)
                 if plate_number != None:
                     cv2.putText(image, plate_number, (int(coor[0]), int(coor[1]-height_ratio)),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.25, (255,255,0), 2)
